@@ -20,10 +20,12 @@ The app was created to:
 - `app/model.py` - model loading and inference logic
 - `app/utils.py` - image preprocessing pipeline
 - `app/schemas.py` - API response schema
+- `frontend/index.html` - simple upload UI, served by FastAPI at the root URL
 
 ### Model and training
 
 - `model/train.py` - CNN model definition and training loop
+- `model/evaluate.py` - measures accuracy on the CIFAR-10 test set
 - `model/classifier.pth` - saved trained model weights
 
 ### Data
@@ -216,17 +218,9 @@ The Dockerfile uses `python:3.11-slim`, installs `requirements.txt`, copies the 
 
 ---
 
-## Known Limitations and Future Improvements
+## Model Performance and Limitations
 
-This project prioritizes understanding the full ML pipeline (training, saving, serving, testing) over maximizing prediction accuracy. A few honest limitations and the reasoning behind them:
-
-**Model accuracy is limited on real-world photos**
-
-The model performs reasonably on CIFAR-10's own test images, but often misclassifies photos taken with a phone camera (for example, a real photo of a cat was predicted as "deer" or "truck"). This is expected, for a few reasons:
-
-- CIFAR-10 training images are small (32x32 pixels), pre-cropped, and centered. Real photos lose significant detail when resized down to that resolution.
-- The `SimpleCNN` architecture used here is intentionally small (2 convolutional layers), which limits how complex a pattern it can learn compared to deeper architectures like ResNet.
-- CIFAR-10 only contains 10 categories total, so any image outside those categories (for example, a phone) is forced into the closest-matching class, even if none genuinely fit.
+**Test set accuracy: 66.69%** on the official CIFAR-10 test set (10,000 images the model never saw during training), measured using `model/evaluate.py`. For context, random guessing across 10 classes would score 10%, so the model has clearly learned meaningful patterns, though it falls short of deeper architectures (ResNet-style models can exceed 90% on CIFAR-10).
 
 **Training was iterated in stages**
 
@@ -238,11 +232,15 @@ The model was trained and re-evaluated at 5, 15, and 40 epochs to observe how lo
 | 15     | ~1000                |
 | 40     | ~90-107               |
 
-Loss dropped significantly between 5 and 40 epochs, but began to plateau (with minor fluctuation) toward the end, suggesting this architecture is near its practical accuracy ceiling for this dataset without further changes.
+Loss dropped significantly between 5 and 40 epochs, but plateaued (with minor fluctuation) toward the end. This, combined with the 66.69% test accuracy, suggests the `SimpleCNN` architecture (2 convolutional layers) is near its practical ceiling on this dataset — further epochs alone are unlikely to meaningfully improve results.
+
+**Accuracy on real-world photos is lower than the test set suggests**
+
+The 66.69% figure reflects performance on CIFAR-10's own images, which are small (32x32), pre-cropped, and centered. Real photos (e.g., from a phone camera) lose significant detail when resized to that resolution and often come from a very different visual distribution, so misclassifications are more common in practice (for example, a real photo of a cat predicted as "deer"). Additionally, CIFAR-10 only covers 10 categories, so any image outside those (like a phone) is forced into the closest-matching class regardless of fit.
 
 **What could improve this further:**
 
-- A deeper CNN architecture (more convolutional layers, batch normalization, dropout)
+- A deeper CNN architecture (more convolutional layers, batch normalization, dropout) — likely the highest-impact change, since loss has plateaued at the current depth
 - Data augmentation during training (random crops, flips) to improve generalization to real-world photos
 - Computing and returning real confidence scores (currently the `confidence` field is unused)
 - Training on a dataset closer to real-world images, rather than CIFAR-10's small, curated images
@@ -253,10 +251,11 @@ Loss dropped significantly between 5 and 40 epochs, but began to plateau (with m
 
 This project is in a working prototype stage. It includes:
 
-- a trained CNN model for CIFAR-10 classification
-- a FastAPI image prediction service
+- a trained CNN model for CIFAR-10 classification, evaluated at 66.69% test accuracy
+- a FastAPI image prediction service with CORS enabled
+- a simple HTML/CSS/JS frontend, served directly by FastAPI at the root URL
 - preprocessing and inference logic
-- dataset and training pipeline
+- dataset, training, and evaluation pipeline
 - a basic API schema and endpoint
 - pinned dependencies in `requirements.txt`
 - a configured Dockerfile for containerized API startup
